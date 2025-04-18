@@ -42,7 +42,6 @@ class Game:
         """
         Undo a move
         """
-
         if not self.isOver:
             self.board.deselectPiece(self.selectedPiece.position)
             self.board = self.tempBoard
@@ -61,7 +60,6 @@ class Game:
         """
         Check for click event to move pieces around in the game
         """
-        # Check if any position in the board is clicked
         if self.board.isClicked(clickedPos):
             postion = self.board.getPositionFromCoordinate(clickedPos)
             piece = self.board.getPiece(postion)
@@ -76,36 +74,31 @@ class Game:
                 if piece == self.selectedPiece:
                     self.board.deselectPiece(postion)
                     self.selectedPiece = None
-                # if another position is clicked
                 else:
-                    # if piece can move to that position
                     moved = self.move(postion)
 
                     if not moved:
                         self.board.deselectPiece(self.selectedPiece.getPosition())
                         self.selectedPiece = None
-                        self.checkForMove(clickedPos)
 
-        else:  # If something else other than the board is not clicked, diselect any selected piece
+        else:  # If something else other than the board is not clicked, deselect any selected piece
             if self.selectedPiece is not None:
                 self.board.deselectPiece(self.selectedPiece.getPosition())
                 self.selectedPiece = None
 
     def move(self, postion):
-        """
-        Moving the piece
-        position: args tuple
-        """
         if postion in self.board.movables:
             self.tempBoard = deepcopy(self.board)
+            captured_piece = self.board.getPiece(postion)  # Lấy quân sắp bị ăn nếu có
             self.board.movePiece(self.selectedPiece.position, postion)
+            if captured_piece:
+                self.checkGameOverByCapture(captured_piece)
             self.selectedPiece = None
-            self.switchTurn()
-            self.checkForMated()
-
-            if self.calculateNextMoves() == 0:
-                self.gameover = True
-
+            if not self.gameover:  # Nếu chưa hết thì tiếp tục
+                self.switchTurn()
+                self.checkForMated()
+                if self.calculateNextMoves() == 0:
+                    self.gameover = True  # Đánh dấu game kết thúc nếu không còn nước đi
             return True
         else:
             print(f"Cant move there {postion}")
@@ -124,7 +117,7 @@ class Game:
 
     def calculateNextMoves(self):
         """
-        Calcalate the next moves for every piece
+        Calculate the next moves for every piece
         """
         piecesInTurn = [
             piece for piece in self.board.activePices if piece.side == self.turn
@@ -160,6 +153,7 @@ class Game:
             piece.possibleMoves = validMoves
 
         return nextMoves
+
     def bot_move(self):
         pieces = [piece for piece in self.board.activePices if piece.side == BLUE_TURN]
         if not pieces:
@@ -181,13 +175,28 @@ class Game:
                 for move in moves:
                     valid_moves.append((piece, move))
             if not valid_moves:
+                self.gameover = True  # Đánh dấu game kết thúc nếu không còn nước đi
+                print("Không còn nước đi hợp lệ cho bot, game kết thúc.")
                 return False
             piece, move = random.choice(valid_moves)
+
         # Thực hiện nước đi
         self.tempBoard = deepcopy(self.board)
+
+        captured_piece = self.board.getPiece(move)
         self.board.movePiece(piece.position, move)
+        if captured_piece:
+            self.checkGameOverByCapture(captured_piece)
+
         self.switchTurn()
         self.checkForMated()
         if self.calculateNextMoves() == 0:
             self.gameover = True
         return True
+
+    def checkGameOverByCapture(self, capturedPiece):
+        if capturedPiece.__class__.__name__ == "Lord":
+            self.gameover = True
+            winner = "Đỏ" if capturedPiece.side == BLUE_TURN else "Xanh"
+            print(f"Tướng {capturedPiece.side} bị ăn! {winner} thắng ván cờ.")
+            # Cập nhật thêm tình trạng thắng thua
