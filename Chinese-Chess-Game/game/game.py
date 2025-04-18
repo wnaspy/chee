@@ -65,6 +65,7 @@ class Game:
                         self.selectedPiece = None
                         self.checkForMove(clickedPos)
         else:
+            #hehe
             if self.selectedPiece is not None:
                 self.board.deselectPiece(self.selectedPiece.getPosition())
                 self.selectedPiece = None
