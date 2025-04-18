@@ -11,7 +11,8 @@ class BoardGame:
         self.rows = 9
         self.cols = 8
 
-        self.gap = WIN_WIDTH // 15
+        # self.gap = WIN_WIDTH // 15
+        self.gap = 95
         self.border = 20
 
         self.width = self.cols * self.gap
@@ -99,82 +100,80 @@ class BoardGame:
             piece.checkPossibleMove(self.grid)
 
     def drawGrid(self, win):
-        """
-        Draw the chess board
-        """
+            """
+            Draw the chess board with customizable colors
+            """
 
-        riverCoordinate = ()
+            riverCoordinate = ()
 
-        # Draw all the lines
-        for row in range(self.rows + 1):
-            pygame.draw.line(
-                win,
-                Color.GREY,
-                (self.x, self.y + row * self.gap),
-                (self.x + self.width, self.y + row * self.gap),
-                2,
-            )
+            # Define custom colors for various elements
+            background_color = (245, 222, 179)  # Light brown background for the board (light tan)
+            grid_line_color = (128, 128, 128)   # Gray color for the grid lines
+            palace_line_color = (169, 169, 169) # Light gray for the palace area
+            river_color = (173, 216, 230)             # Black color for the river
+            border_color = (255, 255, 255)      # White border
+            highlight_color = (0, 255, 0)       # Green for highlighting valid moves
+            piece_color = (255, 223, 186)       # Light peach color for pieces (you can customize per piece type)
 
-            if row == self.rows // 2:
-                riverCoordinate = (self.x + 2, self.y + row * self.gap + 2)
+            # Fill the background of the board with a new color
+            pygame.draw.rect(win, background_color, pygame.Rect(self.x - self.border, self.y - self.border, self.width + self.border * 2, self.height + self.border * 2))
 
-            for col in range(self.cols + 1):
+            # Draw all the grid lines (horizontal and vertical)
+            for row in range(self.rows + 1):
                 pygame.draw.line(
                     win,
-                    Color.GREY,
-                    (col * self.gap + self.x, self.y),
-                    (col * self.gap + self.x, self.height + self.y),
+                    grid_line_color,  # Color of the grid lines
+                    (self.x, self.y + row * self.gap),
+                    (self.x + self.width, self.y + row * self.gap),
                     2,
                 )
 
-        # Draw the palace
-        palaceCoors = [
-            (
-                (self.x + self.gap * 3, self.y),
-                (self.x + self.gap * 5, self.y + self.gap * 2),
-            ),
-            (
-                (self.x + self.gap * 5, self.y),
-                (self.x + self.gap * 3, self.y + self.gap * 2),
-            ),
-            (
-                (self.x + self.gap * 3, self.y + self.gap * 7),
-                (self.x + self.gap * 5, self.y + self.gap * 9),
-            ),
-            (
-                (self.x + self.gap * 5, self.y + self.gap * 7),
-                (self.x + self.gap * 3, self.y + self.gap * 9),
-            ),
-        ]
-        for point1, point2 in palaceCoors:
-            pygame.draw.line(win, Color.GREY, point1, point2, 2)
+                if row == self.rows // 2:  # This condition marks the middle row for the river
+                    riverCoordinate = (self.x + 2, self.y + row * self.gap + 2)
 
-        # Draw the river
-        pygame.draw.rect(
-            win,
-            Color.BLACK,
-            pygame.Rect(*riverCoordinate, self.width - 2, self.gap - 2),
-        )
+                for col in range(self.cols + 1):
+                    pygame.draw.line(
+                        win,
+                        grid_line_color,  # Color of the vertical grid lines
+                        (col * self.gap + self.x, self.y),
+                        (col * self.gap + self.x, self.height + self.y),
+                        2,
+                    )
 
-        # Draw the border
-        self.rectangle = pygame.draw.rect(
-            win,
-            Color.WHITE,
-            (
-                self.x - self.border,
-                self.y - self.border,
-                self.width + self.border * 2,
-                self.height + self.border * 2,
-            ),
-            2,
-        )
+            # Draw the palace area (usually two diagonal lines on each side of the board)
+            palaceCoors = [
+                ((self.x + self.gap * 3, self.y), (self.x + self.gap * 5, self.y + self.gap * 2)),
+                ((self.x + self.gap * 5, self.y), (self.x + self.gap * 3, self.y + self.gap * 2)),
+                ((self.x + self.gap * 3, self.y + self.gap * 7), (self.x + self.gap * 5, self.y + self.gap * 9)),
+                ((self.x + self.gap * 5, self.y + self.gap * 7), (self.x + self.gap * 3, self.y + self.gap * 9)),
+            ]
+            for point1, point2 in palaceCoors:
+                pygame.draw.line(win, palace_line_color, point1, point2, 2)
 
-        for piece in self.activePices:
-            piece.draw(win)
+            # Draw the river (black rectangle dividing the board)
+            pygame.draw.rect(
+                win,
+                river_color,  # River color
+                pygame.Rect(*riverCoordinate, self.width - 2, self.gap - 2),
+            )
 
-        for position in self.movables:
-            coor = self.getCoordinateFromPosition(position)
-            pygame.draw.circle(win, Color.GREEN, coor, 7)
+            # Draw the border around the entire board
+            self.rectangle = pygame.draw.rect(
+                win,
+                border_color,  # Border color (white)
+                (self.x - self.border, self.y - self.border, self.width + self.border * 2, self.height + self.border * 2),
+                2,
+            )
+
+            # Draw all active pieces on the board
+            for piece in self.activePices:
+                piece.draw(win)  # You can adjust individual piece colors if needed in the piece class
+
+            # Highlight possible move positions with a green circle
+            for position in self.movables:
+                coor = self.getCoordinateFromPosition(position)
+                pygame.draw.circle(win, highlight_color, coor, 7)  # Highlight moves in green
+
 
     def calculatePostion(self):
         """

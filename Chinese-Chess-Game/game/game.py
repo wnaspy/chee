@@ -1,9 +1,10 @@
 from copy import deepcopy
-from pprint import pprint
+import random
+import pygame
 
 from .utils import RED_TURN, BLUE_TURN
 from .board import BoardGame
-import random
+
 
 class Game:
     def __init__(self, win):
@@ -13,14 +14,10 @@ class Game:
     def updateGame(self):
         self.board.drawGrid(self.win)
         if self.turn == BLUE_TURN and not self.gameover:
-            import pygame
-            pygame.time.wait(500)  # Đợi 0.5 giây
+            pygame.time.wait(500)
             self.bot_move()
 
     def _init(self):
-        """
-        Initilize new board
-        """
         self.board = BoardGame()
         self.tempBoard = self.board
         self.gameover = False
@@ -33,35 +30,21 @@ class Game:
         return self.gameover
 
     def resetGame(self):
-        """
-        Reset the game
-        """
         self._init()
 
     def undo(self):
-        """
-        Undo a move
-        """
-
         if not self.isOver:
             self.board.deselectPiece(self.selectedPiece.position)
             self.board = self.tempBoard
             self.turn = self.board.turn
 
     def switchTurn(self):
-        """
-        Switching side
-        """
         self.turn = RED_TURN if self.turn == BLUE_TURN else BLUE_TURN
         self.enemyPieces = [
             piece for piece in self.board.activePices if piece.side != self.turn
         ]
 
     def checkForMove(self, clickedPos):
-        """
-        Check for click event to move pieces around in the game
-        """
-        # Check if any position in the board is clicked
         if self.board.isClicked(clickedPos):
             postion = self.board.getPositionFromCoordinate(clickedPos)
             piece = self.board.getPiece(postion)
@@ -71,50 +54,39 @@ class Game:
                     self.selectedPiece = piece
                     self.selectedPiece.makeSelected()
                     self.board.movables = self.selectedPiece.possibleMoves
-
             else:
                 if piece == self.selectedPiece:
                     self.board.deselectPiece(postion)
                     self.selectedPiece = None
-                # if another position is clicked
                 else:
-                    # if piece can move to that position
                     moved = self.move(postion)
-
                     if not moved:
                         self.board.deselectPiece(self.selectedPiece.getPosition())
                         self.selectedPiece = None
                         self.checkForMove(clickedPos)
-
-        else:  # If something else other than the board is not clicked, diselect any selected piece
+        else:
             if self.selectedPiece is not None:
                 self.board.deselectPiece(self.selectedPiece.getPosition())
                 self.selectedPiece = None
 
     def move(self, postion):
-        """
-        Moving the piece
-        position: args tuple
-        """
         if postion in self.board.movables:
+            capturedPiece = self.board.getPiece(postion)
             self.tempBoard = deepcopy(self.board)
             self.board.movePiece(self.selectedPiece.position, postion)
             self.selectedPiece = None
+            if capturedPiece:
+                self.checkGameOverByCapture(capturedPiece)
             self.switchTurn()
             self.checkForMated()
-
             if self.calculateNextMoves() == 0:
                 self.gameover = True
-
             return True
         else:
             print(f"Cant move there {postion}")
             return False
 
     def checkForMated(self):
-        """
-        Check if the lord is under attack
-        """
         lordPiece = self.board.getLord(self.turn)
         enemyMoves = []
         for p in self.enemyPieces:
@@ -123,16 +95,10 @@ class Game:
         lordPiece.mated = True if tuple(lordPiece.position) in enemyMoves else False
 
     def calculateNextMoves(self):
-        """
-        Calcalate the next moves for every piece
-        """
         piecesInTurn = [
             piece for piece in self.board.activePices if piece.side == self.turn
-        ]  # get all pieces that in the turn to move
-
+        ]
         nextMoves = 0
-
-        totalPiecesCheck = 0
 
         for piece in piecesInTurn:
             moves = piece.checkPossibleMove(self.board.grid)
@@ -141,7 +107,6 @@ class Game:
             for move in moves:
                 tempBoard = deepcopy(self.board)
                 tempPiece = tempBoard.getPiece(piece.getPosition())
-
                 tempBoard.movePiece(tempPiece.position, move)
                 lordPiece = tempBoard.getLord(self.turn)
 
@@ -149,7 +114,6 @@ class Game:
                 for p in tempBoard.activePices:
                     if p.getSide() != self.turn and p.attackingPiece:
                         enemyMoves += p.checkPossibleMove(tempBoard.grid)
-                        totalPiecesCheck += 1
 
                 if tuple(lordPiece.position) in enemyMoves or tempBoard.lordTolord():
                     continue
@@ -160,11 +124,12 @@ class Game:
             piece.possibleMoves = validMoves
 
         return nextMoves
+
     def bot_move(self):
         pieces = [piece for piece in self.board.activePices if piece.side == BLUE_TURN]
         if not pieces:
             return False
-        # Ưu tiên nước đi ăn quân
+
         capture_moves = []
         for piece in pieces:
             moves = piece.checkPossibleMove(self.board.grid)
@@ -174,7 +139,6 @@ class Game:
         if capture_moves:
             piece, move = random.choice(capture_moves)
         else:
-            # Chọn ngẫu nhiên nếu không có nước đi ăn quân
             valid_moves = []
             for piece in pieces:
                 moves = piece.checkPossibleMove(self.board.grid)
@@ -183,11 +147,34 @@ class Game:
             if not valid_moves:
                 return False
             piece, move = random.choice(valid_moves)
-        # Thực hiện nước đi
+
+        capturedPiece = self.board.getPiece(move)
         self.tempBoard = deepcopy(self.board)
         self.board.movePiece(piece.position, move)
+        if capturedPiece:
+            self.checkGameOverByCapture(capturedPiece)
         self.switchTurn()
         self.checkForMated()
         if self.calculateNextMoves() == 0:
             self.gameover = True
         return True
+
+    def checkGameOverByCapture(self, capturedPiece):
+        if capturedPiece.__class__.__name__ == "Lord":
+            self.gameover = True
+            self.showEndGameMessage(capturedPiece.side)
+
+    def showEndGameMessage(self, loser_side):
+        winner = "RED" if loser_side == BLUE_TURN else "BLUE"
+        font = pygame.font.SysFont("arial", 48)
+        text = font.render(f"{winner} won!", True, (255, 255, 255))
+        overlay = pygame.Surface((self.win.get_width(), self.win.get_height()))
+        overlay.set_alpha(180)
+        overlay.fill((0, 0, 0))
+        self.win.blit(overlay, (0, 0))
+        self.win.blit(
+            text,
+            ((self.win.get_width() - text.get_width()) // 2, self.win.get_height() // 2),
+        )
+        pygame.display.update()
+        pygame.time.wait(3000)
